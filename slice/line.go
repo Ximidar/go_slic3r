@@ -132,7 +132,15 @@ func (l *Line) Direction() float64 {
 	return atan2
 }
 
-// TODO Parallel functions require Geometry
+// ParallelTo will figure out if this line is parallel to an angle
+func (l *Line) ParallelTo(angle float64) bool {
+	return DirectionsParallelDefault(l.Direction(), angle)
+}
+
+// ParallelToLine will figure out if this line is parallel to a supplied line
+func (l *Line) ParallelToLine(line *Line) bool {
+	return l.ParallelTo(line.Direction())
+}
 
 //Vector will return a vector of this line
 func (l *Line) Vector() *Point {

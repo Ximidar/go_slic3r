@@ -26,9 +26,36 @@ func NewMultiPoint(lines Lines, points ...*Point) *MultiPoint {
 	return mp
 }
 
-// GetPoints will return all points
+// NewMultiPointFromInterface will construct a Multipoint
+func NewMultiPointFromInterface(iface Lines) *MultiPoint {
+	mp := new(MultiPoint)
+	mp.Lines = iface
+	mp.Points = make([]*Point, 0)
+	return mp
+}
+
+// NewMultiPointNoInterface will construct a Multipoint
+func NewMultiPointNoInterface() *MultiPoint {
+	mp := new(MultiPoint)
+	mp.Points = make([]*Point, 0)
+	return mp
+}
+
+// GetPoints will return a copy of all points
 func (mp *MultiPoint) GetPoints() []*Point {
-	return mp.Points
+	copied := make([]*Point, len(mp.Points))
+	copy(copied, mp.Points)
+	return copied
+}
+
+// Empty will determine if the points are empty
+func (mp *MultiPoint) Empty() bool {
+	return len(mp.Points) == 0
+}
+
+// Clear will empty the multipoint
+func (mp *MultiPoint) Clear() {
+	mp.Points = make([]*Point, 0)
 }
 
 // Scale will scale all points
@@ -69,6 +96,55 @@ func (mp *MultiPoint) Reverse() {
 // FirstPoint will retreive the first point
 func (mp *MultiPoint) FirstPoint() *Point {
 	return mp.Points[0]
+}
+
+// LastPoint will retreive the last point
+func (mp *MultiPoint) LastPoint() *Point {
+	return mp.Points[len(mp.Points)-1]
+}
+
+// PointAtIndex will get a point at an index
+func (mp *MultiPoint) PointAtIndex(index int) *Point {
+	return mp.Points[index]
+}
+
+// PopBack will pop the last point in the stack
+func (mp *MultiPoint) PopBack() *Point {
+	popped, newPoints := mp.Points[len(mp.Points)-1], mp.Points[:len(mp.Points)-1]
+	mp.Points = newPoints
+	return popped
+}
+
+// PopFront will pop the first point in the stack
+func (mp *MultiPoint) PopFront() *Point {
+	popped, newPoints := mp.Points[0], mp.Points[1:]
+	mp.Points = newPoints
+	return popped
+}
+
+// Push will append a point
+func (mp *MultiPoint) Push(point ...*Point) {
+	mp.Append(point...)
+}
+
+// PushFront will push a point to the front of the stack
+func (mp *MultiPoint) PushFront(points ...*Point) {
+	mp.Points = append(points, mp.Points...)
+}
+
+// Window returns a sliding window version of the points
+func (mp *MultiPoint) Window(size int) [][]*Point {
+	points := mp.GetPoints()
+	if len(points) <= size {
+		return [][]*Point{points}
+	}
+
+	window := make([][]*Point, 0, len(points)-size+1)
+
+	for i, j := 0, size; j <= len(points); i, j = i+1, j+1 {
+		window = append(window, points[i:j])
+	}
+	return window
 }
 
 // Length will return the length of all lines

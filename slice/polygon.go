@@ -1,7 +1,5 @@
 package slice
 
-import "fmt"
-
 // Polygon is a collection of points that make up a polygon
 type Polygon struct {
 	mp *MultiPoint
@@ -12,6 +10,11 @@ func NewPolygon() *Polygon {
 	p := new(Polygon)
 
 	return p
+}
+
+// Polyline will split the polygon at the first point
+func (pg *Polygon) Polyline() *Polyline {
+	return pg.SplitAtFirstPoint()
 }
 
 // GetPointAtIndex will retreive a point
@@ -35,6 +38,35 @@ func (p *Polygon) Lines() []*Line {
 }
 
 // SplitAtVertex splits the polygon at a vertex and returns a polyline
-func (p *Polygon) SplitAtVertex() {
-	fmt.Println("Not implemented")
+func (pg *Polygon) SplitAtVertex(point *Point) *Polyline {
+	for index, p := range p.mp.Points {
+		if p.CoincidesWith(point) {
+			return pg.SplitAtIndex(index)
+		}
+	}
+	return pg.Polyline()
+}
+
+// SplitAtIndex splits a closed polygon into and open polyline
+func (pg *Polygon) SplitAtIndex(index int) *Polyline {
+	pline := NewPolyline()
+	for _, point := range pg.mp.Points[index:] {
+		pline.mp.Push(point)
+	}
+	for _, point := range pg.mp.Points[:index+1] {
+		pline.mp.Push(point)
+	}
+	return pline
+}
+
+// SplitAtFirstPoint will split the polygon at the first point
+func (pg *Polygon) SplitAtFirstPoint() *Polyline {
+	return pg.SplitAtIndex(0)
+}
+
+// TODO implement ClipperLib
+
+// IsValid will tell if a polygon is valid
+func (pg *Polygon) IsValid() bool {
+	return len(pg.mp.Points) >= 3
 }

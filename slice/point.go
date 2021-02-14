@@ -201,6 +201,41 @@ func (p *Point) DistanceToPerp(line *Line) float64 {
 	return math.Abs(n) / line.Length()
 }
 
+// ProjectionOnto will project this point onto a multipoint
+func (p *Point) ProjectionOnto(poly *MultiPoint) *Point {
+	runningProjection := poly.FirstPoint()
+	runningMin := p.DistanceTo(runningProjection)
+
+	lines := poly.Lines.GetLines()
+	for _, line := range lines {
+		tempPoint := p.ProjectionOntoLine(line)
+		if p.DistanceTo(tempPoint) < runningMin {
+			runningProjection = tempPoint
+			runningMin = p.DistanceTo(runningProjection)
+		}
+	}
+	return runningProjection
+}
+
+// ProjectionOntoLine will project this point onto a line
+func (p *Point) ProjectionOntoLine(line *Line) *Point {
+	if line.A.CoincidesWith(line.B) {
+		return line.A
+	}
+
+	theta := (line.B.X-p.X)*(line.B.X-line.A.X) + (line.B.Y-p.Y)*(line.B.Y-line.A.Y)/(math.Pow(line.B.X-line.A.X, 2)+math.Pow(line.B.Y-line.A.Y, 2))
+	if 0.00 <= theta && theta <= 1.00 {
+		//theta * line.A + (1.0-theta) * line.B
+		return AddPoints(MultPoints(theta, line.A), MultPoints((1.0-theta), line.B))
+	}
+
+	// Else pick closest endpoint
+	if p.DistanceTo(line.A) < p.DistanceTo(line.B) {
+		return line.A
+	}
+	return line.B
+}
+
 // VectorTo will return a vector
 func (p *Point) VectorTo(point *Point) *Point {
 	return NewPoint(point.X-p.X, point.Y-p.Y)
