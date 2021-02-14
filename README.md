@@ -1,0 +1,1 @@
+Go Slic3r is based off of Slic3r. This project is for my own personal enrichment and is not a serious project. I wanted to understand how Slic3r works, so I am attempting to rewrite it in another language. Or at least the CLI part. I am literally going file by file and rewriting the C++ as Go code.
