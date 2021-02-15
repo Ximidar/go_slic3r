@@ -103,8 +103,12 @@ func (mp *MultiPoint) LastPoint() *Point {
 	return mp.Points[len(mp.Points)-1]
 }
 
-// PointAtIndex will get a point at an index
+// PointAtIndex will get a point at an index. If a negative index is supplied it will return a
+// point from the back of the array
 func (mp *MultiPoint) PointAtIndex(index int) *Point {
+	if index < 0 {
+		return mp.Points[len(mp.Points)+index]
+	}
 	return mp.Points[index]
 }
 

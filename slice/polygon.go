@@ -1,6 +1,9 @@
 package slice
 
-import "math"
+import (
+	"fmt"
+	"math"
+)
 
 // Polygon is a collection of points that make up a polygon
 type Polygon struct {
@@ -14,6 +17,7 @@ func NewPolygon() *Polygon {
 	return p
 }
 
+// Push will push a point into the polygon. Take this out at some point
 func (pg *Polygon) Push(point *Point) {
 	pg.mp.Push(point)
 }
@@ -24,22 +28,22 @@ func (pg *Polygon) Polyline() *Polyline {
 }
 
 // GetPointAtIndex will retreive a point
-func (p *Polygon) GetPointAtIndex(index int) *Point {
-	return p.mp.Points[index]
+func (pg *Polygon) GetPointAtIndex(index int) *Point {
+	return pg.mp.PointAtIndex(index)
 }
 
 // GetLastPoint will retreive the last point
-func (p *Polygon) GetLastPoint() *Point {
-	return p.mp.FirstPoint() // last point == first point for polygons
+func (pg *Polygon) GetLastPoint() *Point {
+	return pg.mp.FirstPoint() // last point == first point for polygons
 }
 
 // Lines will retrieve the polygon lines
-func (p *Polygon) Lines() []*Line {
+func (pg *Polygon) Lines() []*Line {
 	lines := make([]*Line, 0)
-	for i := 0; i < len(p.mp.Points); i += 2 {
-		lines = append(lines, NewLine(p.GetPointAtIndex(i), p.GetPointAtIndex(i+1)))
+	for i := 0; i < len(pg.mp.Points); i += 2 {
+		lines = append(lines, NewLine(pg.GetPointAtIndex(i), pg.GetPointAtIndex(i+1)))
 	}
-	lines = append(lines, NewLine(p.mp.Points[len(p.mp.Points)-1], p.mp.Points[0]))
+	lines = append(lines, NewLine(pg.mp.Points[len(pg.mp.Points)-1], pg.mp.Points[0]))
 	return lines
 }
 
@@ -70,6 +74,11 @@ func (pg *Polygon) SplitAtFirstPoint() *Polyline {
 	return pg.SplitAtIndex(0)
 }
 
+// EquallySpacedPoints will space out points
+func (pg *Polygon) EquallySpacedPoints(distance float64) []*Point {
+	return pg.SplitAtFirstPoint().EquallySpacedPoints(distance)
+}
+
 // Area will calculate the area of the polygon
 func (pg *Polygon) Area() float64 {
 	if len(pg.mp.Points) < 3 {
@@ -86,15 +95,60 @@ func (pg *Polygon) Area() float64 {
 
 }
 
+// Orientation will get the orientation of the polygon
+func (pg *Polygon) Orientation() bool {
+	return pg.Area() > 0
+}
+
+// IsCounterClockwise will determine if the polygon is CCW
+// It seems like we could just simplify this. I had originally thought
+// the orientation function from the clipperlib was going to be much more complicated.
+func (pg *Polygon) IsCounterClockwise() bool {
+	return pg.Orientation()
+}
+
+// IsClockwise will tell if a polygon is clockwise
+func (pg *Polygon) IsClockwise() bool {
+	return !pg.IsCounterClockwise()
+}
+
+// MakeCounterClockwise will reverse the polygon
+func (pg *Polygon) MakeCounterClockwise() bool {
+	if !pg.IsCounterClockwise() {
+		pg.mp.Reverse()
+		return true
+	}
+	return false
+}
+
+// MakeClockwise will make the polygon Clockwise
+func (pg *Polygon) MakeClockwise() bool {
+	if pg.IsClockwise() {
+		pg.mp.Reverse()
+		return true
+	}
+	return false
+}
+
 // IsValid will tell if a polygon is valid
 func (pg *Polygon) IsValid() bool {
 	return len(pg.mp.Points) >= 3
 }
 
 // ContainsPoint will check if the polygon contains a point
-// TODO implement if this is actually used.
-func (pg *Polygon) ContainsPoint(point *Point) bool {
-	return false
+func (pg *Polygon) ContainsPoint(point *Point) (result bool) {
+	result = false
+	for index, p1 := range pg.mp.Points {
+		p2 := pg.mp.PreviousPoint(index)
+
+		// Theres a warning here:
+		// FIXME this test is not numerically robust. Particularly, it does not handle horizontal segments at y == point.y well.
+		// Does the ray with y == point.y intersect this line segment?
+		if ((p1.Y > point.Y) != (p2.Y > point.Y)) && (point.X > (p2.X-p1.X)*(point.Y-p1.Y)/(p2.Y-p1.Y)+p1.X) {
+			result = !result
+		}
+	}
+	return
 }
 
 // RemoveCollinearPoints will remove collinear points
@@ -167,4 +221,74 @@ func (pg *Polygon) Centroid() *Point {
 	}
 
 	return NewPoint(tmpX/(6*area), tmpY/(6*area))
+}
+
+// Describe will return a string describing the polygon
+func (pg *Polygon) Describe() string {
+	describe := "POLYGON(("
+	for _, point := range pg.mp.Points {
+		describe += point.Describe()
+		if !EqualPoints(point, pg.mp.LastPoint()) {
+			describe += ","
+		}
+	}
+	describe += "))"
+	return describe
+}
+
+// ConcavePoints will find all concave point in the polygon
+func (pg *Polygon) ConcavePoints(angle float64) []*Point {
+	angle = 2.00*math.Pi - angle + Epsilon
+	concavePoints := make([]*Point, 0)
+
+	// check whether first point forms a concave angle
+	if pg.mp.FirstPoint().CCWAngle(
+		pg.mp.LastPoint(),
+		pg.mp.NextPoint(0)) <= angle {
+		concavePoints = append(concavePoints, pg.mp.FirstPoint())
+	}
+
+	// Check whether points [1:] form concave angles
+	for index, point := range pg.mp.Points[1:] {
+		if point.CCWAngle(pg.mp.PreviousPoint(index), pg.mp.NextPoint(index)) <= angle {
+			concavePoints = append(concavePoints, point)
+		}
+	}
+
+	// Check whether last point forms a concave angle
+	if pg.mp.LastPoint().CCWAngle(pg.mp.PointAtIndex(-2), pg.mp.FirstPoint()) <= angle {
+		concavePoints = append(concavePoints, pg.mp.LastPoint())
+	}
+
+	return concavePoints
+}
+
+// ConvexPoints will return all convex points
+func (pg *Polygon) ConvexPoints(angle float64) []*Point {
+	angle = 2.00*math.Pi - angle - Epsilon
+	convexPoints := make([]*Point, 0)
+
+	// check whether first point forms a convex angle
+	if pg.mp.FirstPoint().CCWAngle(pg.mp.LastPoint(), pg.mp.NextPoint(0)) >= angle {
+		convexPoints = append(convexPoints, pg.mp.FirstPoint())
+	}
+
+	// Check whether points [1:] form convex angles
+	for index, point := range pg.mp.Points[1:] {
+		if point.CCWAngle(pg.mp.PreviousPoint(index), pg.mp.NextPoint(index)) >= angle {
+			convexPoints = append(convexPoints, point)
+		}
+	}
+
+	// Check whether last point forms a convex angle
+	if pg.mp.LastPoint().CCWAngle(pg.mp.PointAtIndex(-2), pg.mp.FirstPoint()) >= angle {
+		convexPoints = append(convexPoints, pg.mp.LastPoint())
+	}
+
+	return convexPoints
+}
+
+// NewScale will scale the polygon
+func (pg *Polygon) NewScale() {
+	fmt.Println("Not implemented yet")
 }
