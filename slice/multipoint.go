@@ -108,6 +108,24 @@ func (mp *MultiPoint) PointAtIndex(index int) *Point {
 	return mp.Points[index]
 }
 
+// PreviousPoint will get the point previous to the supplied index
+func (mp *MultiPoint) PreviousPoint(index int) *Point {
+	idx := index - 1
+	if idx < 0 {
+		idx = len(mp.Points) - 1
+	}
+	return mp.PointAtIndex(idx)
+}
+
+// NextPoint will get the next point to the supplied index
+func (mp *MultiPoint) NextPoint(index int) *Point {
+	idx := index + 1
+	if idx > len(mp.Points)-1 {
+		idx = 0
+	}
+	return mp.PointAtIndex(idx)
+}
+
 // PopBack will pop the last point in the stack
 func (mp *MultiPoint) PopBack() *Point {
 	popped, newPoints := mp.Points[len(mp.Points)-1], mp.Points[:len(mp.Points)-1]
@@ -130,6 +148,11 @@ func (mp *MultiPoint) Push(point ...*Point) {
 // PushFront will push a point to the front of the stack
 func (mp *MultiPoint) PushFront(points ...*Point) {
 	mp.Points = append(points, mp.Points...)
+}
+
+// EraseAt will delete an item at index
+func (mp *MultiPoint) EraseAt(index int) {
+	mp.Points = append(mp.Points[:index], mp.Points[index+1:]...)
 }
 
 // Window returns a sliding window version of the points
