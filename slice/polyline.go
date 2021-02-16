@@ -4,29 +4,29 @@ import "errors"
 
 // Polyline is a line made up of multiple points
 type Polyline struct {
-	mp    *MultiPoint
+	MP    *MultiPoint
 	Width float64
 }
 
 // NewPolyline will make a line
 func NewPolyline() *Polyline {
-	p := new(Polyline)
-	p.mp = NewMultiPointFromInterface(p)
-	return p
+	pl := new(Polyline)
+	pl.MP = NewMultiPointFromInterface(pl)
+	return pl
 }
 
 // ToLine will Convert a Polyline to a Line
 func (pl *Polyline) ToLine() (*Line, error) {
-	if len(pl.mp.Points) > 2 {
+	if len(pl.MP.Points) > 2 {
 		return nil, errors.New("Cannot Convert a Polyline to Line with more than two points")
 	}
-	return NewLine(pl.mp.FirstPoint(), pl.mp.LastPoint()), nil
+	return NewLine(pl.MP.FirstPoint(), pl.MP.LastPoint()), nil
 }
 
 // LeftmostPoint will grab the leftmost point
 func (pl *Polyline) LeftmostPoint() *Point {
-	leftP := pl.mp.FirstPoint()
-	for _, point := range pl.mp.Points {
+	leftP := pl.MP.FirstPoint()
+	for _, point := range pl.MP.Points {
 		if point.X < leftP.X {
 			leftP = point
 		}
@@ -37,8 +37,8 @@ func (pl *Polyline) LeftmostPoint() *Point {
 // Lines will return all lines
 func (pl *Polyline) Lines() []*Line {
 	lines := make([]*Line, 0)
-	for i := 0; i < len(pl.mp.Points); i += 2 {
-		lines = append(lines, NewLine(pl.mp.PointAtIndex(i), pl.mp.PointAtIndex(i+1)))
+	for i := 0; i < len(pl.MP.Points); i += 2 {
+		lines = append(lines, NewLine(pl.MP.PointAtIndex(i), pl.MP.PointAtIndex(i+1)))
 	}
 	return lines
 }
@@ -51,58 +51,58 @@ func (pl *Polyline) GetLines() []*Line {
 // ClipEnd will remove a bit from the end of the polyline
 func (pl *Polyline) ClipEnd(distance float64) {
 	for distance > 0 {
-		lastPoint := pl.mp.PopBack()
-		if pl.mp.Empty() {
+		lastPoint := pl.MP.PopBack()
+		if pl.MP.Empty() {
 			break
 		}
 
-		LastSegmentLength := lastPoint.DistanceTo(pl.mp.LastPoint())
+		LastSegmentLength := lastPoint.DistanceTo(pl.MP.LastPoint())
 		if LastSegmentLength <= distance {
 			distance -= LastSegmentLength
 			continue
 		}
 
-		segment := NewLine(lastPoint, pl.mp.LastPoint())
-		pl.mp.Push(segment.GetPointAt(distance))
+		segment := NewLine(lastPoint, pl.MP.LastPoint())
+		pl.MP.Push(segment.GetPointAt(distance))
 		distance = 0
 	}
 }
 
 // ClipFront will remove a bit from the start of the polyline
 func (pl *Polyline) ClipFront(distance float64) {
-	pl.mp.Reverse()
+	pl.MP.Reverse()
 	pl.ClipEnd(distance)
-	if len(pl.mp.Points) >= 2 {
-		pl.mp.Reverse()
+	if len(pl.MP.Points) >= 2 {
+		pl.MP.Reverse()
 	}
 }
 
 // ExtendEnd will extend the end of a polyline
 func (pl *Polyline) ExtendEnd(distance float64) {
-	backPoint := pl.mp.LastPoint()
-	backPoint2 := pl.mp.PointAtIndex(len(pl.mp.Points) - 2)
+	backPoint := pl.MP.LastPoint()
+	backPoint2 := pl.MP.PointAtIndex(len(pl.MP.Points) - 2)
 	backline := NewLine(backPoint, backPoint2)
-	pl.mp.Points[len(pl.mp.Points)-1] = backline.GetPointAt(-distance)
+	pl.MP.Points[len(pl.MP.Points)-1] = backline.GetPointAt(-distance)
 }
 
 // ExtendStart will extend the front of a polyline
 func (pl *Polyline) ExtendStart(distance float64) {
-	frontPoint := pl.mp.FirstPoint()
-	frontPoint2 := pl.mp.PointAtIndex(1)
+	frontPoint := pl.MP.FirstPoint()
+	frontPoint2 := pl.MP.PointAtIndex(1)
 	frontLine := NewLine(frontPoint, frontPoint2)
-	pl.mp.Points[0] = frontLine.GetPointAt(-distance)
+	pl.MP.Points[0] = frontLine.GetPointAt(-distance)
 }
 
 // EquallySpacedPoints will return a collection of points picked
 // on the polygon countour that are evenly spaced
 func (pl *Polyline) EquallySpacedPoints(distance float64) []*Point {
 	mp := NewMultiPointNoInterface()
-	mp.Push(pl.mp.FirstPoint())
+	mp.Push(pl.MP.FirstPoint())
 	var len float64 = 0
 
-	for i := 1; !EqualPoints(pl.mp.PointAtIndex(i), pl.mp.LastPoint()); i++ {
-		currentPoint := pl.mp.PointAtIndex(i)
-		previousPoint := pl.mp.PointAtIndex(i - 1)
+	for i := 1; !EqualPoints(pl.MP.PointAtIndex(i), pl.MP.LastPoint()); i++ {
+		currentPoint := pl.MP.PointAtIndex(i)
+		previousPoint := pl.MP.PointAtIndex(i - 1)
 		segmentLength := currentPoint.DistanceTo(previousPoint)
 
 		len += segmentLength
@@ -127,12 +127,12 @@ func (pl *Polyline) EquallySpacedPoints(distance float64) []*Point {
 
 // SplitAt will split the polyline at a point
 func (pl *Polyline) SplitAt(point *Point, pline1 *Polyline, pline2 *Polyline) {
-	if pl.mp.Empty() {
+	if pl.MP.Empty() {
 		return
 	}
 
 	var lineIdx int = 0
-	p := pl.mp.FirstPoint()
+	p := pl.MP.FirstPoint()
 	min := point.DistanceTo(p)
 	lines := pl.Lines()
 
@@ -146,20 +146,20 @@ func (pl *Polyline) SplitAt(point *Point, pline1 *Polyline, pline2 *Polyline) {
 	}
 
 	// Create First Half
-	pline1.mp.Clear()
+	pline1.MP.Clear()
 	for _, line := range lines[:lineIdx+1] {
 		if !line.A.CoincidesWith(p) {
-			pline1.mp.Push(line.A)
+			pline1.MP.Push(line.A)
 		}
 	}
 
-	pline1.mp.Push(point)
+	pline1.MP.Push(point)
 
 	// Create Second Half
-	pline2.mp.Clear()
-	pline2.mp.Push(point)
+	pline2.MP.Clear()
+	pline2.MP.Push(point)
 	for _, line := range lines[lineIdx:] {
-		pline2.mp.Push(line.B)
+		pline2.MP.Push(line.B)
 	}
 }
 
@@ -167,7 +167,7 @@ func (pl *Polyline) SplitAt(point *Point, pline1 *Polyline, pline2 *Polyline) {
 // first point and last point. (Checking each line against the previous
 // one would cause the error to accumulate.)
 func (pl *Polyline) IsStraight() bool {
-	dir := NewLine(pl.mp.FirstPoint(), pl.mp.LastPoint()).Direction()
+	dir := NewLine(pl.MP.FirstPoint(), pl.MP.LastPoint()).Direction()
 
 	for _, line := range pl.Lines() {
 		if !line.ParallelTo(dir) {
@@ -180,9 +180,9 @@ func (pl *Polyline) IsStraight() bool {
 // Describe will return a string representation of the Polyline
 func (pl *Polyline) Describe() string {
 	description := "POLYLINE(("
-	for _, point := range pl.mp.Points {
+	for _, point := range pl.MP.Points {
 		description += point.Describe()
-		if !point.CoincidesWith(pl.mp.LastPoint()) {
+		if !point.CoincidesWith(pl.MP.LastPoint()) {
 			description += ","
 		}
 	}

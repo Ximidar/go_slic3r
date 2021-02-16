@@ -13,7 +13,7 @@ type Lines interface {
 // MultiPoint Holds multiple points
 type MultiPoint struct {
 	Points      []*Point
-	BoundingBox float64
+	BoundingBox *BoundingBox
 	Lines       Lines
 }
 
