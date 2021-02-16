@@ -5,9 +5,6 @@ import (
 	"math"
 )
 
-// Points is a slice of multiple points
-type Points []*Point
-
 // Point defines a point in space
 type Point struct {
 	X float64
@@ -45,20 +42,31 @@ func (p *Point) TranslatePoint(point *Point) {
 	p.Translate(point.X, point.Y)
 }
 
-// Rotate will rotate the point around an angle
+// Rotate will rotate this point
 func (p *Point) Rotate(angle float64) {
+	p = p.Rotated(angle)
+}
+
+// RotateWithCenter will rotate this point
+func (p *Point) RotateWithCenter(angle float64, center *Point) {
+	p = p.RotatedWithCenter(angle, center)
+}
+
+// Rotated will return a rotated copy of the current point
+func (p *Point) Rotated(angle float64) *Point {
 	curX := p.X
 	curY := p.Y
 
 	sine := math.Sin(angle)
 	cos := math.Cos(angle)
 
-	p.X = math.Round(cos*curX - sine*curY)
-	p.Y = math.Round(cos*curX - sine*curY)
+	x := math.Round(cos*curX - sine*curY)
+	y := math.Round(cos*curX - sine*curY)
+	return NewPoint(x, y)
 }
 
-// RotateWithPoint will rotate around a point
-func (p *Point) RotateWithPoint(angle float64, center *Point) {
+// RotatedWithCenter will return a Rotated around center copy of the current point
+func (p *Point) RotatedWithCenter(angle float64, center *Point) *Point {
 	curX := p.X
 	curY := p.Y
 
@@ -68,8 +76,10 @@ func (p *Point) RotateWithPoint(angle float64, center *Point) {
 	dx := curX - center.X
 	dy := curY - center.Y
 
-	p.X = math.Round(center.X + cos*dx - sine*dy)
-	p.Y = math.Round(center.Y + cos*dy + sine*dx)
+	x := math.Round(center.X + cos*dx - sine*dy)
+	y := math.Round(center.Y + cos*dy + sine*dx)
+
+	return NewPoint(x, y)
 }
 
 // CCW will return a Counter-Clockwise turn
