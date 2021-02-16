@@ -38,8 +38,8 @@ func (l *Line) Translate(X float64, Y float64) {
 
 // Rotate will rotate the line
 func (l *Line) Rotate(angle float64, center *Point) {
-	l.A.RotateWithPoint(angle, center)
-	l.B.RotateWithPoint(angle, center)
+	l.A.RotateWithCenter(angle, center)
+	l.B.RotateWithCenter(angle, center)
 }
 
 // Reverse will swap points A and B

@@ -19,7 +19,7 @@ func NewPolygon() *Polygon {
 
 // Push will push a point into the polygon. Take this out at some point
 func (pg *Polygon) Push(point *Point) {
-	pg.MP.Push(point)
+	pg.MP.Points.Push(point)
 }
 
 // Polyline will split the polygon at the first point
@@ -29,21 +29,21 @@ func (pg *Polygon) Polyline() *Polyline {
 
 // GetPointAtIndex will retreive a point
 func (pg *Polygon) GetPointAtIndex(index int) *Point {
-	return pg.MP.PointAtIndex(index)
+	return pg.MP.Points.EntryAtIndex(index)
 }
 
 // GetLastPoint will retreive the last point
 func (pg *Polygon) GetLastPoint() *Point {
-	return pg.MP.FirstPoint() // last point == first point for polygons
+	return pg.MP.Points.First() // last point == first point for polygons
 }
 
 // Lines will retrieve the polygon lines
 func (pg *Polygon) Lines() []*Line {
 	lines := make([]*Line, 0)
 	for i := 0; i < len(pg.MP.Points); i += 2 {
-		lines = append(lines, NewLine(pg.GetPointAtIndex(i), pg.GetPointAtIndex(i+1)))
+		lines = append(lines, NewLine(pg.MP.Points.EntryAtIndex(i), pg.MP.Points.EntryAtIndex(i+1)))
 	}
-	lines = append(lines, NewLine(pg.MP.Points[len(pg.MP.Points)-1], pg.MP.Points[0]))
+	lines = append(lines, NewLine(pg.MP.Points.EntryAtIndex(-1), pg.MP.Points[0]))
 	return lines
 }
 
@@ -61,10 +61,10 @@ func (pg *Polygon) SplitAtVertex(point *Point) *Polyline {
 func (pg *Polygon) SplitAtIndex(index int) *Polyline {
 	pline := NewPolyline()
 	for _, point := range pg.MP.Points[index:] {
-		pline.mp.Push(point)
+		pline.MP.Points.Push(point)
 	}
 	for _, point := range pg.MP.Points[:index+1] {
-		pline.mp.Push(point)
+		pline.MP.Points.Push(point)
 	}
 	return pline
 }
@@ -75,7 +75,7 @@ func (pg *Polygon) SplitAtFirstPoint() *Polyline {
 }
 
 // EquallySpacedPoints will space out points
-func (pg *Polygon) EquallySpacedPoints(distance float64) []*Point {
+func (pg *Polygon) EquallySpacedPoints(distance float64) Points {
 	return pg.SplitAtFirstPoint().EquallySpacedPoints(distance)
 }
 
@@ -87,7 +87,7 @@ func (pg *Polygon) Area() float64 {
 
 	area := 0.00
 	for i, p1 := range pg.MP.Points {
-		p2 := pg.MP.PreviousPoint(i)
+		p2 := pg.MP.Points.PreviousEntry(i)
 		area += (p2.X + p1.X) * (p2.Y - p1.Y)
 	}
 
@@ -139,7 +139,7 @@ func (pg *Polygon) IsValid() bool {
 func (pg *Polygon) ContainsPoint(point *Point) (result bool) {
 	result = false
 	for index, p1 := range pg.MP.Points {
-		p2 := pg.MP.PreviousPoint(index)
+		p2 := pg.MP.Points.PreviousEntry(index)
 
 		// Theres a warning here:
 		// FIXME this test is not numerically robust. Particularly, it does not handle horizontal segments at y == point.y well.
@@ -159,7 +159,7 @@ func (pg *Polygon) RemoveCollinearPoints() {
 	}
 
 	points := pg.MP.GetPoints()
-	pg.MP.Clear()
+	pg.MP.Points.Clear()
 
 	for i := 0; i < len(points); i++ {
 		p1 := points[i]
@@ -168,7 +168,7 @@ func (pg *Polygon) RemoveCollinearPoints() {
 			l := NewLine(p1, p3)
 
 			if l.DistanceTo(p2) > ScaledEpsilon {
-				pg.MP.Push(p1)
+				pg.MP.Points.Push(p1)
 				i = j
 			}
 		}
@@ -189,7 +189,7 @@ func (pg *Polygon) RemoveVerticalCollinearPoints(tolerance float64) {
 	}
 
 	for offset, val := range erasureIndex {
-		pg.MP.EraseAt(val + offset)
+		pg.MP.Points.EraseAt(val + offset)
 	}
 }
 
@@ -197,9 +197,9 @@ func (pg *Polygon) RemoveVerticalCollinearPoints(tolerance float64) {
 func (pg *Polygon) TriangulateConvex(polygons []*Polygon) {
 	for i, point := range pg.MP.Points[2:] {
 		poly := NewPolygon()
-		poly.MP.Push(pg.MP.FirstPoint())
-		poly.MP.Push(pg.MP.Points[(i+2)-1])
-		poly.MP.Push(point)
+		poly.MP.Points.Push(pg.MP.Points.First())
+		poly.MP.Points.Push(pg.MP.Points[(i+2)-1])
+		poly.MP.Points.Push(point)
 
 		if poly.Area() > 0 {
 			polygons = append(polygons, poly)
@@ -214,8 +214,8 @@ func (pg *Polygon) Centroid() *Point {
 	tmpY := 0.00
 
 	pline := pg.SplitAtFirstPoint()
-	for i, point := range pline.mp.Points {
-		nextP := pg.MP.PointAtIndex(i + 1)
+	for i, point := range pline.MP.Points {
+		nextP := pg.MP.Points.EntryAtIndex(i + 1)
 		tmpX += (point.X + nextP.X) * (point.X*nextP.Y - nextP.X*point.Y)
 		tmpY += (point.Y + nextP.Y) * (point.X*nextP.Y - nextP.X*point.Y)
 	}
@@ -228,7 +228,7 @@ func (pg *Polygon) Describe() string {
 	describe := "POLYGON(("
 	for _, point := range pg.MP.Points {
 		describe += point.Describe()
-		if !EqualPoints(point, pg.MP.LastPoint()) {
+		if !EqualPoints(point, pg.MP.Points.Last()) {
 			describe += ","
 		}
 	}
@@ -237,52 +237,52 @@ func (pg *Polygon) Describe() string {
 }
 
 // ConcavePoints will find all concave point in the polygon
-func (pg *Polygon) ConcavePoints(angle float64) []*Point {
+func (pg *Polygon) ConcavePoints(angle float64) Points {
 	angle = 2.00*math.Pi - angle + Epsilon
-	concavePoints := make([]*Point, 0)
+	concavePoints := make(Points, 0)
 
 	// check whether first point forms a concave angle
-	if pg.MP.FirstPoint().CCWAngle(
-		pg.MP.LastPoint(),
-		pg.MP.NextPoint(0)) <= angle {
-		concavePoints = append(concavePoints, pg.MP.FirstPoint())
+	if pg.MP.Points.First().CCWAngle(
+		pg.MP.Points.Last(),
+		pg.MP.Points.NextEntry(0)) <= angle {
+		concavePoints = append(concavePoints, pg.MP.Points.First())
 	}
 
 	// Check whether points [1:] form concave angles
 	for index, point := range pg.MP.Points[1:] {
-		if point.CCWAngle(pg.MP.PreviousPoint(index), pg.MP.NextPoint(index)) <= angle {
+		if point.CCWAngle(pg.MP.Points.PreviousEntry(index), pg.MP.Points.NextEntry(index)) <= angle {
 			concavePoints = append(concavePoints, point)
 		}
 	}
 
 	// Check whether last point forms a concave angle
-	if pg.MP.LastPoint().CCWAngle(pg.MP.PointAtIndex(-2), pg.MP.FirstPoint()) <= angle {
-		concavePoints = append(concavePoints, pg.MP.LastPoint())
+	if pg.MP.Points.Last().CCWAngle(pg.MP.Points.EntryAtIndex(-2), pg.MP.Points.First()) <= angle {
+		concavePoints = append(concavePoints, pg.MP.Points.Last())
 	}
 
 	return concavePoints
 }
 
 // ConvexPoints will return all convex points
-func (pg *Polygon) ConvexPoints(angle float64) []*Point {
+func (pg *Polygon) ConvexPoints(angle float64) Points {
 	angle = 2.00*math.Pi - angle - Epsilon
-	convexPoints := make([]*Point, 0)
+	convexPoints := make(Points, 0)
 
 	// check whether first point forms a convex angle
-	if pg.MP.FirstPoint().CCWAngle(pg.MP.LastPoint(), pg.MP.NextPoint(0)) >= angle {
-		convexPoints = append(convexPoints, pg.MP.FirstPoint())
+	if pg.MP.Points.First().CCWAngle(pg.MP.Points.Last(), pg.MP.Points.NextEntry(0)) >= angle {
+		convexPoints = append(convexPoints, pg.MP.Points.First())
 	}
 
 	// Check whether points [1:] form convex angles
 	for index, point := range pg.MP.Points[1:] {
-		if point.CCWAngle(pg.MP.PreviousPoint(index), pg.MP.NextPoint(index)) >= angle {
+		if point.CCWAngle(pg.MP.Points.PreviousEntry(index), pg.MP.Points.NextEntry(index)) >= angle {
 			convexPoints = append(convexPoints, point)
 		}
 	}
 
 	// Check whether last point forms a convex angle
-	if pg.MP.LastPoint().CCWAngle(pg.MP.PointAtIndex(-2), pg.MP.FirstPoint()) >= angle {
-		convexPoints = append(convexPoints, pg.MP.LastPoint())
+	if pg.MP.Points.Last().CCWAngle(pg.MP.Points.EntryAtIndex(-2), pg.MP.Points.First()) >= angle {
+		convexPoints = append(convexPoints, pg.MP.Points.Last())
 	}
 
 	return convexPoints

@@ -107,7 +107,7 @@ func (p *Point) CoincidesWithEpsilon(p1 *Point) bool {
 }
 
 // NearestPointIndex will find the nearest point in a slice of point
-func (p *Point) NearestPointIndex(points []*Point) int {
+func (p *Point) NearestPointIndex(points Points) int {
 	var idx int = -1
 	var distance float64 = -1.00
 
@@ -137,7 +137,7 @@ func (p *Point) NearestPointIndex(points []*Point) int {
 }
 
 // NearestWaypointIndex finds the point that is closest to both this point and the supplied one
-func (p *Point) NearestWaypointIndex(points []*Point, dest *Point) int {
+func (p *Point) NearestWaypointIndex(points Points, dest *Point) int {
 	var idx int = -1
 	var distance float64 = -1.00
 
@@ -162,7 +162,7 @@ func (p *Point) NearestWaypointIndex(points []*Point, dest *Point) int {
 }
 
 // NearestPoint will decide if a supplied point is nearest to this point
-func (p *Point) NearestPoint(points []*Point, dest *Point, point *Point) bool {
+func (p *Point) NearestPoint(points Points, dest *Point, point *Point) bool {
 	idx := p.NearestWaypointIndex(points, dest)
 	if idx == -1 {
 		return false
@@ -213,7 +213,7 @@ func (p *Point) DistanceToPerp(line *Line) float64 {
 
 // ProjectionOnto will project this point onto a multipoint
 func (p *Point) ProjectionOnto(poly *MultiPoint) *Point {
-	runningProjection := poly.FirstPoint()
+	runningProjection := poly.Points.First()
 	runningMin := p.DistanceTo(runningProjection)
 
 	lines := poly.Lines.GetLines()

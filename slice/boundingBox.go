@@ -37,17 +37,16 @@ func NewBoundingBox(points ...*Point) *BoundingBox {
 
 // NewBoundingBoxLines will construct a bounding box from lines
 func NewBoundingBoxLines(lines ...*Line) *BoundingBox {
-	var points []*Point = make([]*Point, 0)
+	var points Points = make(Points, 0)
 	for _, line := range lines {
-		points = append(points, line.A)
-		points = append(points, line.B)
+		points.Push(line.A, line.B)
 	}
 	return NewBoundingBox(points...)
 }
 
 // Polygon will alter a polygon to be a bounding box
 func (bb *BoundingBox) Polygon(poly *Polygon) {
-	poly.mp.Clear()
+	poly.MP.Points.Clear()
 	poly.Push(NewPoint(bb.Min.X, bb.Min.Y))
 	poly.Push(NewPoint(bb.Max.X, bb.Min.Y))
 	poly.Push(NewPoint(bb.Max.X, bb.Max.Y))
