@@ -73,6 +73,19 @@ func (mp *MultiPoint) Rotate(angle float64) {
 	}
 }
 
+// RotateWithCenter will rotate all points with a center
+func (mp *MultiPoint) RotateWithCenter(angle float64, center *Point) {
+	s := math.Sin(angle)
+	c := math.Cos(angle)
+
+	for _, point := range mp.Points {
+		curX := point.X - center.X
+		curY := point.Y - center.Y
+		point.X = math.Round(center.X + c*curX - s*curY)
+		point.Y = math.Round(center.Y + c*curY + s*curX)
+	}
+}
+
 // Reverse will reverse the points
 func (mp *MultiPoint) Reverse() {
 	for i := len(mp.Points)/2 - 1; i >= 0; i-- {
