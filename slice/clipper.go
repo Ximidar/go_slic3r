@@ -1,5 +1,7 @@
 package slice
 
+import "math"
+
 func NearZero(val float64) bool {
 	return (val > -TOLERANCE && val < TOLERANCE)
 }
@@ -169,7 +171,7 @@ func SlopesEqual4Pt(pt1, pt2, pt3, pt4 *Point) bool {
 	return (pt1.Y-pt2.Y)*(pt3.X-pt4.X) == (pt1.X-pt2.X)*(pt3.Y-pt4.Y)
 }
 
-func IsHorizontal(edge TEdge) bool {
+func IsHorizontal(edge *TEdge) bool {
 	return edge.Dx == HORIZONTAL
 }
 
@@ -178,6 +180,104 @@ func GetDx2Pt(pt1, pt2 *Point) float64 {
 		return HORIZONTAL
 	}
 	return (pt2.X - pt1.X) / (pt2.Y - pt1.Y)
+}
+
+func SetDxFromTedge(edge *TEdge) {
+	dy := edge.Top.Y - edge.Bot.Y
+	if dy == 0 {
+		edge.Dx = HORIZONTAL
+		return
+	}
+
+	edge.Dx = (edge.Top.X - edge.Bot.Y) / dy
+}
+
+// Small bit of go-ifying
+func (edge *TEdge) SetDx() {
+	dy := edge.Top.Y - edge.Bot.Y
+	if dy == 0 {
+		edge.Dx = HORIZONTAL
+		return
+	}
+
+	edge.Dx = (edge.Top.X - edge.Bot.Y) / dy
+}
+
+func SwapSides(edge1, edge2 *TEdge) {
+	edge1.Side, edge2.Side = edge2.Side, edge1.Side
+}
+
+func SwapPolyIndexes(edge1, edge2 *TEdge) {
+	edge1.OutIdx, edge2.OutIdx = edge2.OutIdx, edge1.OutIdx
+}
+
+func (edge *TEdge) TopX(currentY float64) float64 {
+	if currentY == edge.Top.Y {
+		return edge.Top.X
+	}
+	return edge.Bot.X + math.Round(edge.Dx*(currentY-edge.Bot.Y))
+}
+
+func IntersectPoint(edge1, edge2 *TEdge, point *Point) {
+	var b1 float64
+	var b2 float64
+
+	if edge1.Dx == edge2.Dx {
+		point.Y = edge1.Curr.Y
+		point.X = edge1.TopX(point.Y)
+		return
+	} else if edge1.Dx == 0 {
+		point.X = edge1.Bot.X
+		if IsHorizontal(edge2) {
+			point.Y = edge2.Bot.Y
+		} else {
+			b2 = edge2.Bot.Y - (edge2.Bot.X / edge2.Dx)
+			point.Y = math.Round(point.X/edge2.Dx + b2)
+		}
+	} else if edge2.Dx == 0 {
+		point.X = edge2.Bot.X
+		if IsHorizontal(edge1) {
+			point.Y = edge1.Bot.Y
+		} else {
+			b1 = edge1.Bot.Y - (edge1.Bot.X / edge1.Dx)
+			point.Y = math.Round(point.X/edge1.Dx + b1)
+		}
+	} else {
+		b1 = edge1.Bot.X - edge1.Bot.Y*edge1.Dx
+		b2 = edge2.Bot.X - edge2.Bot.Y*edge2.Dx
+		var q float64 = (b2 - b1) / (edge1.Dx - edge2.Dx)
+		point.Y = math.Round(q)
+		if math.Abs(edge1.Dx) < math.Abs(edge2.Dx) {
+			point.X = math.Round(edge1.Dx*q + b1)
+		} else {
+			point.X = math.Round(edge2.Dx*q + b2)
+		}
+	}
+
+	if point.Y < edge1.Top.Y || point.Y < edge2.Top.Y {
+		if edge1.Top.Y > edge2.Top.Y {
+			point.Y = edge1.Top.Y
+		} else {
+			point.Y = edge2.Top.Y
+		}
+
+		if math.Abs(edge1.Dx) < math.Abs(edge2.Dx) {
+			point.X = edge1.TopX(point.Y)
+		} else {
+			point.X = edge2.TopX(point.Y)
+		}
+	}
+
+	// don't allow point to be below curr.y (ie bottom of the scanbeam)
+	if point.Y > edge1.Curr.Y {
+		point.Y = edge1.Curr.Y
+		// use the more vertical edge to derive x
+		if math.Abs(edge1.Dx) > math.Abs(edge2.Dx) {
+			point.X = edge2.TopX(point.Y)
+		} else {
+			point.X = edge1.TopX(point.Y)
+		}
+	}
 }
 
 // continue https://github.com/slic3r/Slic3r/blob/master/xs/src/clipper.cpp
