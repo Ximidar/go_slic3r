@@ -302,4 +302,189 @@ func ReversePolyPtLinks(pp *OutPt) {
 	}
 }
 
+func DisposeOutPts(pp *OutPt) {
+	if pp == nil {
+		return
+	}
+
+	pp.Prev.Next = nil
+	for pp != nil {
+		temp := pp
+		pp = pp.Next
+		temp.Next = nil
+		temp.Prev = nil
+		temp.Pt = nil
+		temp.Idx = 0
+	}
+}
+
+func (edge *TEdge) InitEdge(next, prev *TEdge, pt *Point) {
+	edge.Next = next
+	edge.Prev = prev
+	edge.Curr = pt
+	edge.OutIdx = 0
+}
+
+func (edge *TEdge) InitEdgeWithPolyType(polyType PolyType) {
+	if edge.Curr.Y >= edge.Next.Curr.Y {
+		edge.Bot = edge.Curr
+		edge.Top = edge.Next.Curr
+	} else {
+		edge.Top = edge.Curr
+		edge.Bot = edge.Next.Curr
+	}
+	edge.SetDx()
+	edge.PolyType = polyType
+}
+
+// RemoveEdge will remove the current TEdge from the linked list
+func (edge *TEdge) RemoveEdge() {
+	edge.Prev.Next = edge.Next
+	edge.Next.Prev = edge.Prev
+	result := edge.Next
+	edge.Prev = nil // flag as removed (see ClipperBase.Clear) (Maybe... who knows)
+	edge = result
+}
+
+func (edge *TEdge) ReverseHorizontal() {
+	//swap horizontal edges' Top and Bottom x's so they follow the natural
+	//progression of the bounds - ie so their xbots will align with the
+	//adjoining lower edge. [Helpful in the ProcessHorizontal() method.]
+	edge.Top.X, edge.Bot.X = edge.Bot.X, edge.Top.X
+}
+
+func SwapPoints(pt1, pt2 *Point) (*Point, *Point) {
+	return pt2, pt1
+}
+
+func GetOverlapSegment(pt1a, pt1b, pt2a, pt2b *Point) (result bool, pt1 *Point, pt2 *Point) {
+
+	// precondition: segments are Collinear
+	if math.Abs(pt1a.X-pt1b.X) > math.Abs(pt1a.Y-pt1b.Y) {
+		if pt1a.X > pt1b.X {
+			pt1a, pt1b = SwapPoints(pt1a, pt1b)
+		}
+		if pt2a.X > pt2b.X {
+			pt2a, pt2b = SwapPoints(pt2a, pt2b)
+		}
+		if pt1a.X > pt2a.X {
+			pt1 = pt1a
+		} else {
+			pt1 = pt2a
+		}
+		if pt1b.X > pt2b.X {
+			pt2 = pt1b
+		} else {
+			pt2 = pt2b
+		}
+		result = pt1.X < pt2.X
+		return
+	}
+	if pt1a.Y > pt1b.Y {
+		pt1a, pt1b = SwapPoints(pt1a, pt1b)
+	}
+	if pt2a.Y > pt2b.Y {
+		pt2a, pt2b = SwapPoints(pt2a, pt2b)
+	}
+	if pt1a.Y > pt2a.Y {
+		pt1 = pt1a
+	} else {
+		pt1 = pt2a
+	}
+	if pt1b.Y > pt2b.Y {
+		pt2 = pt1b
+	} else {
+		pt2 = pt2b
+	}
+	result = pt1.Y < pt2.Y
+	return
+}
+
+func FirstIsBottomPt(btmPt1 *OutPt, btmPt2 *OutPt) bool {
+	p := btmPt1.Prev
+	for EqualPoints(p.Pt, btmPt1.Pt) && p.Idx != btmPt1.Idx {
+		p = p.Prev
+	}
+	dx1p := math.Abs(GetDx2Pt(btmPt1.Pt, p.Pt))
+	p = btmPt1.Next
+	for EqualPoints(p.Pt, btmPt1.Pt) && p.Idx != btmPt1.Idx {
+		p = p.Next
+	}
+	dx1n := math.Abs(GetDx2Pt(btmPt1.Pt, p.Pt))
+
+	p = btmPt2.Prev
+	for EqualPoints(p.Pt, btmPt2.Pt) && p.Idx != btmPt2.Idx {
+		p = p.Prev
+	}
+	dx2p := math.Abs(GetDx2Pt(btmPt2.Pt, p.Pt))
+	p = btmPt2.Next
+	for EqualPoints(p.Pt, btmPt2.Pt) && p.Idx != btmPt2.Idx {
+		p = p.Next
+	}
+	dx2n := math.Abs(GetDx2Pt(btmPt2.Pt, p.Pt))
+
+	if math.Max(dx1p, dx1n) == math.Max(dx2p, dx2n) &&
+		math.Min(dx1p, dx1n) == math.Min(dx2p, dx1n) {
+		return btmPt1.Area() > 0
+	}
+	return (dx1p >= dx2p && dx1p >= dx2n) || (dx1n >= dx2p && dx1n >= dx2n)
+
+}
+
+func (pp *OutPt) GetBottomPt() *OutPt {
+	var dups *OutPt = nil
+	p := pp.Next
+
+	for p.Idx != pp.Idx {
+		if p.Pt.Y > pp.Pt.Y {
+			pp = p
+			dups = nil
+		} else if p.Pt.Y == pp.Pt.Y && p.Pt.X <= pp.Pt.X {
+			if p.Pt.X < pp.Pt.X {
+				dups = nil
+				pp = p
+			} else {
+				if p.Next.Idx != pp.Idx && p.Prev.Idx != pp.Idx {
+					dups = p
+				}
+			}
+		}
+		p = p.Next
+	}
+
+	if dups != nil {
+		for dups.Idx != p.Idx {
+			if !FirstIsBottomPt(p, dups) {
+				pp = dups
+			}
+			dups = dups.Next
+			for dups.Pt != pp.Pt {
+				dups = dups.Next
+			}
+		}
+	}
+	return pp
+}
+
+func Pt2IsBetweenPt1AndPt3(pt1, pt2, pt3 *Point) bool {
+	if EqualPoints(pt1, pt3) || EqualPoints(pt1, pt2) || EqualPoints(pt3, pt2) {
+		return false
+	} else if pt1.X != pt3.X {
+		return (pt2.X > pt1.X) == (pt2.X < pt3.X)
+	}
+	return (pt2.Y > pt1.Y) == (pt2.Y < pt3.Y)
+}
+
+func HorzSegmentsOverlap(seg1a, seg1b, seg2a, seg2b float64) (bool, float64, float64, float64, float64) {
+
+	if seg1a > seg1b {
+		seg1a, seg1b = seg1b, seg1a
+	}
+	if seg2a > seg2b {
+		seg2a, seg2b = seg2b, seg2a
+	}
+	return (seg1a < seg2b) && (seg2a < seg1b), seg1a, seg1b, seg2a, seg2b
+
+}
+
 // continue https://github.com/slic3r/Slic3r/blob/master/xs/src/clipper.cpp
