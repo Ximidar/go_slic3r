@@ -92,13 +92,14 @@ func (pgx *PolygonEx) IsValid() bool {
 }
 
 // Contains a line
-func (pgx *PolygonEx) Contains(line *Line) bool{
+func (pgx *PolygonEx) Contains(line *Line) bool {
 	pl := NewPolyline()
 	pl.MP.Points.Push(line.A, line.B)
 	return pgx.ContainsPline(pl)
 }
 
 // ContainsPline detirmine if this contains a pline
-func (pgx *PolygonEx) ContainsPline(pline *Polyline) bool{
-	pline.
+func (pgx *PolygonEx) ContainsPline(pline *Polyline) bool {
+	//pline.
+	return false
 }

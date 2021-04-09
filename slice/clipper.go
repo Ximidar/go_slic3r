@@ -1,6 +1,8 @@
 package slice
 
-import "math"
+import (
+	"math"
+)
 
 func NearZero(val float64) bool {
 	return (val > -TOLERANCE && val < TOLERANCE)
@@ -276,6 +278,26 @@ func IntersectPoint(edge1, edge2 *TEdge, point *Point) {
 			point.X = edge2.TopX(point.Y)
 		} else {
 			point.X = edge1.TopX(point.Y)
+		}
+	}
+}
+
+func ReversePolyPtLinks(pp *OutPt) {
+	if pp == nil {
+		return
+	}
+	OrigIdx := pp.Idx
+	pp1 := pp
+	var pp2 *OutPt
+
+	for {
+		pp2 = pp1.Next
+		pp1.Next = pp1.Prev
+		pp1.Prev = pp2
+		pp1 = pp2
+
+		if pp1.Idx == OrigIdx {
+			break
 		}
 	}
 }
