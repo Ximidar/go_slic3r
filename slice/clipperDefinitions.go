@@ -77,3 +77,6 @@ const Skip = -2
 
 const HORIZONTAL = -1.0e+40
 const TOLERANCE = 1.0e-20
+
+const loRange = 0x3FFFFFFF
+const hiRange = 0x3FFFFFFFFFFFFFFF

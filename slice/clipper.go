@@ -487,4 +487,44 @@ func HorzSegmentsOverlap(seg1a, seg1b, seg2a, seg2b float64) (bool, float64, flo
 
 }
 
+func RangeTest(pt *Point, useFullRange bool) error {
+	if useFullRange {
+		if pt.X > hiRange || pt.Y > hiRange || -pt.X > hiRange || -pt.Y > hiRange {
+			return ErrOutsideRange
+		}
+	}
+	if pt.X > loRange || pt.Y > loRange || -pt.X > loRange || -pt.Y > loRange {
+		useFullRange = true
+		return RangeTest(pt, useFullRange)
+	}
+	return nil
+}
+
+func (edge *TEdge) FindNextLocMin() *TEdge {
+	e := edge
+	for {
+		for !EqualPoints(e.Bot, e.Prev.Bot) || EqualPoints(e.Curr, e.Top) {
+			e = e.Next
+		}
+
+		if IsHorizontal(e) && !IsHorizontal(e.Prev) {
+			break
+		}
+
+		e2 := e
+		for IsHorizontal(e) {
+			e = e.Next
+		}
+
+		if e.Top.Y == e.Prev.Bot.Y {
+			continue // just an intermediate horizon
+		}
+		if e2.Prev.Bot.X < e.Bot.X {
+			e = e2
+		}
+		break
+	}
+	return e
+}
+
 // continue https://github.com/slic3r/Slic3r/blob/master/xs/src/clipper.cpp
