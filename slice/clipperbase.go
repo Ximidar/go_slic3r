@@ -368,3 +368,63 @@ func (cb *ClipperBase) AddPath(pg *Polygon, Ptype PolyType, Closed bool) (bool, 
 	}
 	return true, nil
 }
+
+func (cb *ClipperBase) AddPaths(paths []*Polygon, Ptype PolyType, Closed bool) (result bool, err error) {
+	for _, path := range paths {
+		result, err = cb.AddPath(path, Ptype, Closed)
+		if err != nil {
+			break
+		}
+	}
+	return result, err
+}
+
+func (cb *ClipperBase) Clear() {
+	cb.DisposeLocalMinimaList()
+	cb.edges = make([][]*TEdge, 0)
+	cb.useFullRange = false
+	cb.hasOpenPaths = false
+}
+
+func (cb *ClipperBase) Reset() {
+	cb.currentLM = 0
+	if cb.currentLM == len(cb.minimaList) {
+		return // Nothing to process
+	}
+
+	SortLocalMinimum(cb.minimaList)
+
+	// clear / reset priority queue
+	cb.scanBeamList = make(Points, 0)
+
+	for _, lm := range cb.minimaList {
+		cb.InsertScanbeam(lm.Y)
+		e := lm.LeftBound
+		if e != nil {
+			e.Curr = e.Bot
+			e.Side = esLeft
+			e.OutIdx = Unassigned
+		}
+
+		e = nil
+		e = lm.RightBound
+		if e != nil {
+			e.Curr = e.Bot
+			e.Side = esRight
+			e.OutIdx = Unassigned
+		}
+	}
+
+	cb.activeEdges = nil
+	cb.currentLM = 0
+
+}
+
+func (cb *ClipperBase) DisposeLocalMinimaList() {
+	cb.minimaList = make([]*LocalMinimum, 0)
+	cb.currentLM = 0
+}
+
+func (cb *ClipperBase) InsertScanbeam(p *Point) {
+	cb.scanBeamList.Push(p)
+}

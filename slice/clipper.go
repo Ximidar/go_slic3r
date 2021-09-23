@@ -2,6 +2,7 @@ package slice
 
 import (
 	"math"
+	"sort"
 )
 
 func NearZero(val float64) bool {
@@ -35,13 +36,27 @@ type IntersectNode struct {
 }
 
 type LocalMinimum struct {
-	Y          float64
+	Y          *Point
 	LeftBound  *TEdge
 	RightBound *TEdge
 }
 
-func LocalMinSort(a, b LocalMinimum) bool {
-	return b.Y < a.Y
+type LocalMininumSort []*LocalMinimum
+
+func (lm LocalMininumSort) Len() int {
+	return len(lm)
+}
+
+func (lm LocalMininumSort) Swap(i, j int) {
+	lm[i], lm[j] = lm[j], lm[i]
+}
+
+func (lm LocalMininumSort) Less(i, j int) bool {
+	return lm[i].Y < lm[j].Y
+}
+
+func SortLocalMinimum(lms []*LocalMinimum) {
+	sort.Sort(LocalMininumSort(lms))
 }
 
 type OutRec struct {
