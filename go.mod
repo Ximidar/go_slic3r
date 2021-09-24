@@ -1,6 +1,6 @@
 module goSlice
 
-go 1.15
+go 1.17
 
 replace goSlicer => ./
 

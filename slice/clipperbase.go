@@ -1,25 +1,29 @@
 package slice
 
-import "errors"
+import (
+	"errors"
+	"math"
+)
 
 var ErrOutsideRange = errors.New("coordinate outside allowed range")
 
 type ClipperBase struct {
 	currentLM         int
-	minimaList        []*LocalMinimum
+	minimaList        LocalMinimums
 	useFullRange      bool
 	edges             [][]*TEdge
 	preserveCollinear bool
 	hasOpenPaths      bool
 	polyOuts          []*OutRec
 	activeEdges       *TEdge
-	scanBeamList      Points
+	scanBeamList      []float64
 }
 
 func NewClipperBase() *ClipperBase {
 	cb := new(ClipperBase)
 	cb.currentLM = 0
 	cb.useFullRange = false
+	cb.minimaList = NewLocalMinimums()
 	return cb
 }
 
@@ -388,14 +392,14 @@ func (cb *ClipperBase) Clear() {
 
 func (cb *ClipperBase) Reset() {
 	cb.currentLM = 0
-	if cb.currentLM == len(cb.minimaList) {
+	if cb.minimaList.EntryAtIndex(cb.currentLM) == cb.minimaList.Last() {
 		return // Nothing to process
 	}
 
 	SortLocalMinimum(cb.minimaList)
 
 	// clear / reset priority queue
-	cb.scanBeamList = make(Points, 0)
+	cb.scanBeamList = make([]float64, 0)
 
 	for _, lm := range cb.minimaList {
 		cb.InsertScanbeam(lm.Y)
@@ -421,10 +425,73 @@ func (cb *ClipperBase) Reset() {
 }
 
 func (cb *ClipperBase) DisposeLocalMinimaList() {
-	cb.minimaList = make([]*LocalMinimum, 0)
+	cb.minimaList.Clear()
 	cb.currentLM = 0
 }
 
-func (cb *ClipperBase) InsertScanbeam(p *Point) {
-	cb.scanBeamList.Push(p)
+func (cb *ClipperBase) PopLocalMinima(y float64) (*LocalMinimum, bool) {
+	if cb.minimaList.EntryAtIndex(cb.currentLM) == cb.minimaList.Last() ||
+		(cb.minimaList.EntryAtIndex(cb.currentLM).Y != y) {
+		return nil, false
+	}
+	locmin := cb.minimaList.EntryAtIndex(cb.currentLM)
+	cb.currentLM += 1
+	return locmin, true
+}
+
+func (cb *ClipperBase) GetBounds() FloatRect {
+	result := FloatRect{}
+	lmIdx := 0
+	lm := cb.minimaList.EntryAtIndex(lmIdx)
+	if lm == cb.minimaList.Last() {
+		return FloatRect{
+			Top:    0,
+			Bottom: 0,
+			Left:   0,
+			Right:  0,
+		}
+	}
+
+	result.Left = lm.LeftBound.Bot.X
+	result.Top = lm.LeftBound.Bot.Y
+	result.Right = lm.LeftBound.Bot.X
+	result.Bottom = lm.LeftBound.Bot.Y
+
+	for lm != cb.minimaList.Last() {
+		result.Bottom = math.Max(result.Bottom, lm.LeftBound.Bot.Y)
+
+		e := lm.LeftBound
+		for {
+			bottomE := e
+			for e.NextInLML != nil {
+				if e.Bot.X < result.Left {
+					result.Left = e.Bot.X
+				}
+				if e.Bot.X > result.Right {
+					result.Right = e.Bot.X
+				}
+				e = e.NextInLML
+			}
+			result.Left = math.Min(result.Left, e.Bot.X)
+			result.Right = math.Max(result.Right, e.Bot.X)
+
+			result.Left = math.Min(result.Left, e.Top.X)
+			result.Right = math.Max(result.Right, e.Top.X)
+
+			result.Top = math.Min(result.Top, e.Top.Y)
+
+			if bottomE == lm.LeftBound {
+				e = lm.RightBound
+			} else {
+				break
+			}
+			lmIdx++
+			lm = cb.minimaList.EntryAtIndex(lmIdx)
+		}
+	}
+	return result
+}
+
+func (cb *ClipperBase) InsertScanbeam(y float64) {
+	cb.scanBeamList = append(cb.scanBeamList, y)
 }
