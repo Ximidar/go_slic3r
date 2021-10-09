@@ -534,4 +534,139 @@ func (cb *ClipperBase) DisposeOutRec(idx int) {
 	cb.polyOuts = cb.polyOuts[:len(cb.polyOuts)-1]
 }
 
-// Continue at https://github.com/slic3r/Slic3r/blob/master/xs/src/clipper.cpp
+func (cb *ClipperBase) DeleteFromAEL(e *TEdge) {
+	AELPrev := e.PrevInAEL
+	AELNext := e.NextInAEL
+
+	if AELPrev == nil && AELNext == nil && e != cb.activeEdges {
+		return // already deleted
+	}
+
+	if AELPrev != nil {
+		AELPrev.NextInAEL = AELNext
+	} else {
+		cb.activeEdges = AELNext
+	}
+
+	if AELNext != nil {
+		AELNext.PrevInAEL = AELPrev
+	}
+	e.NextInAEL = nil
+	e.PrevInAEL = nil
+}
+
+func (cb *ClipperBase) CreateOutRec() *OutRec {
+	result := new(OutRec)
+	result.IsHole = false
+	result.IsOpen = false
+	result.FirstLeft = nil
+	result.Pts = nil
+	result.BottomPt = nil
+	result.PolyNd = nil
+	cb.polyOuts = append(cb.polyOuts, result)
+	result.Idx = len(cb.polyOuts) - 1
+	return result
+}
+
+func (cb *ClipperBase) SwapPositionInAEL(edge1 *TEdge, edge2 *TEdge) {
+	// Check that one or other edge hasn't already been removed from AEL
+	if edge1.NextInAEL == edge1.PrevInAEL ||
+		edge2.NextInAEL == edge2.PrevInAEL {
+		return
+	}
+
+	if edge1.NextInAEL == edge2 {
+		next := edge2.NextInAEL
+		if next != nil {
+			next.PrevInAEL = edge1
+		}
+		prev := edge1.PrevInAEL
+		if prev != nil {
+			prev.NextInAEL = edge2
+		}
+
+		edge2.PrevInAEL = prev
+		edge2.NextInAEL = edge1
+		edge1.PrevInAEL = edge2
+		edge1.NextInAEL = next
+	} else if edge2.NextInAEL == edge1 {
+		next := edge1.NextInAEL
+		if next != nil {
+			next.PrevInAEL = edge2
+		}
+		prev := edge2.PrevInAEL
+		if prev != nil {
+			prev.NextInAEL = edge1
+		}
+		edge1.PrevInAEL = prev
+		edge1.NextInAEL = edge2
+		edge2.PrevInAEL = edge1
+		edge2.NextInAEL = next
+	} else {
+		next := edge1.NextInAEL
+		prev := edge1.PrevInAEL
+		edge1.NextInAEL = edge2.NextInAEL
+		if edge1.NextInAEL != nil {
+			edge1.NextInAEL.PrevInAEL = edge1
+		}
+
+		edge1.PrevInAEL = edge2.PrevInAEL
+		if edge1.PrevInAEL != nil {
+			edge1.PrevInAEL.NextInAEL = edge1
+		}
+
+		edge2.NextInAEL = next
+		if edge2.NextInAEL != nil {
+			edge2.NextInAEL.PrevInAEL = edge2
+		}
+
+		edge2.PrevInAEL = prev
+		if edge2.PrevInAEL != nil {
+			edge2.PrevInAEL.NextInAEL = edge2
+		}
+	}
+
+	if edge1.PrevInAEL == nil {
+		cb.activeEdges = edge1
+	} else if edge2.PrevInAEL == nil {
+		cb.activeEdges = edge2
+	}
+}
+
+func (cb *ClipperBase) UpdateEdgeIntoAEL(e *TEdge) error {
+	if e.NextInLML == nil {
+		return errors.New("UpdateEdgeIntoAEL: invalid call")
+	}
+
+	e.NextInLML.OutIdx = e.OutIdx
+	AELPrev := e.PrevInAEL
+	AELNext := e.NextInAEL
+	if AELPrev != nil {
+		AELPrev.NextInAEL = e.NextInLML
+	} else {
+		cb.activeEdges = e.NextInLML
+	}
+
+	if AELNext != nil {
+		AELNext.PrevInAEL = e.NextInLML
+	}
+
+	e.NextInLML.Side = e.Side
+	e.NextInLML.WinDelta = e.WinDelta
+	e.NextInLML.WinCnt = e.WinCnt
+	e.NextInLML.WinCnt2 = e.WinCnt2
+
+	e = e.NextInLML
+	e.Curr = e.Bot
+	e.PrevInAEL = AELPrev
+	e.NextInAEL = AELNext
+
+	if !IsHorizontal(e) {
+		cb.InsertScanbeam(e.Top.Y)
+	}
+	return nil
+}
+
+func (cb *ClipperBase) LocalMinimaPending() bool {
+	return cb.currentLM != len(cb.minimaList)
+}

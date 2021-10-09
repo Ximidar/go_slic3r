@@ -38,7 +38,7 @@ type OutRec struct {
 	Idx       int
 	IsHole    bool
 	IsOpen    bool
-	FirstLect *OutRec
+	FirstLeft *OutRec
 	PolyNd    *Polygon
 	Pts       *OutPt
 	BottomPt  *OutPt
@@ -523,5 +523,8 @@ func (edge *TEdge) FindNextLocMin() *TEdge {
 	}
 	return e
 }
+
+// Start Clipper
+// Line 1474
 
 // continue https://github.com/slic3r/Slic3r/blob/master/xs/src/clipper.cpp
