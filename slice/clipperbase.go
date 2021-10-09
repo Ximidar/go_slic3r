@@ -495,3 +495,43 @@ func (cb *ClipperBase) GetBounds() FloatRect {
 func (cb *ClipperBase) InsertScanbeam(y float64) {
 	cb.scanBeamList = append(cb.scanBeamList, y)
 }
+
+func (cb *ClipperBase) PopScanbeam() (float64, bool) {
+	if len(cb.scanBeamList) == 0 {
+		return 0, false
+	}
+	// pop first value and shift
+	var y float64
+	y, cb.scanBeamList = cb.scanBeamList[0], cb.scanBeamList[1:]
+	for len(cb.scanBeamList) != 0 && y == cb.scanBeamList[0] {
+		// remove duplicate points
+		cb.scanBeamList = cb.scanBeamList[1:]
+	}
+	return y, true
+}
+
+func (cb *ClipperBase) DisposeAllOutRecs() {
+	for idx := range cb.polyOuts {
+		cb.DisposeOutRec(idx)
+	}
+	cb.polyOuts = make([]*OutRec, 0)
+}
+
+func (cb *ClipperBase) DisposeOutRec(idx int) {
+	if len(cb.polyOuts) < idx {
+		return
+	}
+	OutRec := cb.polyOuts[idx]
+	if OutRec.Pts != nil {
+		DisposeOutPts(OutRec.Pts)
+	}
+
+	// Delete index
+	if idx < len(cb.polyOuts)-1 {
+		copy(cb.polyOuts[idx:], cb.polyOuts[idx+1:])
+	}
+	cb.polyOuts[len(cb.polyOuts)-1] = nil // or the zero value of T
+	cb.polyOuts = cb.polyOuts[:len(cb.polyOuts)-1]
+}
+
+// Continue at https://github.com/slic3r/Slic3r/blob/master/xs/src/clipper.cpp
