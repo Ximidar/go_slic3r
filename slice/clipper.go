@@ -1,6 +1,8 @@
 package slice
 
 import (
+	"errors"
+	"fmt"
 	"math"
 )
 
@@ -524,7 +526,86 @@ func (edge *TEdge) FindNextLocMin() *TEdge {
 	return e
 }
 
-// Start Clipper
-// Line 1474
+// Clipper Options
+type ClipperOptions struct {
+	ExecuteLocked     bool
+	UseFullRange      bool
+	ReverseOutput     bool
+	StrictSimple      bool
+	PreserveCollinear bool
+	HasOpenPaths      bool
+	ZFill             int64
+}
 
+// clipper
+type Clipper struct {
+	opt  ClipperOptions
+	base *ClipperBase
+}
+
+// New Clipper Object
+func NewClipper(options ClipperOptions) *Clipper {
+	clip := new(Clipper)
+	clip.opt = options
+	clip.base = new(ClipperBase)
+
+	return clip
+}
+
+// ZFill function has a callback
+func (clip *Clipper) ZFillFunc() {
+	// TODO introduce a way to set a callback for ZFill
+	fmt.Println("ZFill Func not implemented yet.")
+}
+
+func (clip *Clipper) ExecutePolygon(clipType ClipType, solution *Polygon, fillType PolyFillType) error {
+	if clip.opt.ExecuteLocked {
+		return errors.New("Execution Locked")
+	}
+
+	clip.opt.ExecuteLocked = true
+	solution.MP.Points.Clear() // Empty Solution
+
+	err := clip.ExecuteInternal()
+
+	if err != nil {
+		fmt.Println("Clip Failed:", err)
+		return err
+	}
+	clip.BuildResult(solution)
+
+	clip.base.DisposeAllOutRecs()
+	clip.opt.ExecuteLocked = false
+	return nil
+}
+
+func (clip *Clipper) FixHoleLinkage(outrec *OutRec) {
+	//skip OutRecs that (a) contain outermost polygons or
+	//(b) already have the correct owner/child linkage ...
+	if outrec.FirstLeft == nil ||
+		(outrec.IsHole != outrec.FirstLeft.IsHole &&
+			outrec.FirstLeft.Pts != nil) {
+		return
+
+	}
+
+	orfl := outrec.FirstLeft
+	for orfl != nil && ((orfl.IsHole == outrec.IsHole) || orfl.Pts == nil) {
+		orfl = orfl.FirstLeft
+	}
+	outrec.FirstLeft = orfl
+}
+
+func (clip *Clipper) ExecuteInternal() error{
+	clip.base.Reset()
+	Maxima := clip.MaximaList()
+	SortedEdges := 0
+
+	botY, topY := 0, 0 
+
+
+	if ! clip.base.PopScanbeam()
+}
+
+// LINE 1560
 // continue https://github.com/slic3r/Slic3r/blob/master/xs/src/clipper.cpp
